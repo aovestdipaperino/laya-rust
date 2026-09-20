@@ -1,0 +1,20 @@
+{
+  "department": {
+    "type": "choice",
+    "instructions": "Which team should own this ticket?",
+    "criteria": {
+      "billing": "payments, invoices, refunds, duplicate charges",
+      "technical": "bugs, outages, login and integration failures",
+      "sales": "pricing questions, upgrades, new contracts"
+    }
+  },
+  "urgency": {
+    "type": "score",
+    "instructions": "How urgent is this ticket?",
+    "criteria": ["not urgent", "low", "normal", "high", "critical outage"]
+  },
+  "needs_human": {
+    "type": "noul",
+    "instructions": "This ticket requires a human agent rather than an automated reply."
+  }
+}

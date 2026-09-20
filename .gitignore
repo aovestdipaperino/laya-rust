@@ -1,0 +1,6 @@
+/target
+# The checkpoint is ~820 MB; fetch it with the commands in the README.
+/models
+# Scratch files from other sessions working in this directory.
+/examples/_*_tmp.rs
+.DS_Store

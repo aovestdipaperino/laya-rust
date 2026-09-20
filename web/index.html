@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laya Console</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --plane: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --bar: #2a78d6;
+    --bar-dim: #b7d3f6;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --plane: #0d0d0d;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --bar: #3987e5;
+      --bar-dim: #184f95;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --bar: #3987e5;
+    --bar-dim: #184f95;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--plane); color: var(--ink);
+    font: 400 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { margin: 0; font-weight: 600; }
+
+  /* ---- shell ---------------------------------------------------------- */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 12px 16px; background: var(--surface-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand img {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    /* a hairline ring keeps the circle defined against either surface */
+    box-shadow: 0 0 0 1px var(--border);
+  }
+  .brand .names { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .brand h1 { font-size: 15px; letter-spacing: -0.01em; }
+  .brand .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1 1 auto; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font: 500 11px/1 var(--mono); color: var(--ink-2);
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* Narrow: keep the brand and the theme toggle on one line, chips wrap below them. */
+  @media (max-width: 640px) {
+    header { row-gap: 10px; }
+    .brand { order: 1; }
+    .spacer { order: 2; }
+    #theme { order: 3; }
+    .chips { order: 4; width: 100%; }
+    .brand .sub { display: none; }
+  }
+
+  main {
+    display: grid; grid-template-columns: minmax(340px, 4fr) 6fr;
+    gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .card > .hd {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; border-bottom: 1px solid var(--border);
+  }
+  .card > .hd h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-2); }
+  .card > .bd { padding: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---- controls -------------------------------------------------------- */
+  button, select, textarea, input {
+    font: inherit; color: var(--ink); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  button { cursor: pointer; padding: 7px 11px; }
+  button:hover { background: var(--plane); }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--series-1); outline-offset: 1px;
+  }
+  button.primary {
+    background: var(--series-1); border-color: transparent; color: #fff; font-weight: 600;
+    padding: 9px 16px;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:disabled { opacity: 0.55; cursor: progress; }
+  button.ghost { border-color: transparent; color: var(--ink-2); padding: 5px 8px; }
+  button.ghost:hover { background: var(--plane); color: var(--ink); }
+  textarea {
+    width: 100%; min-height: 232px; padding: 10px; resize: vertical;
+    font: 13px/1.55 var(--mono);
+  }
+  input[type=text] { width: 100%; padding: 7px 9px; }
+  label.field { display: block; }
+  label.field > span {
+    display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px;
+  }
+
+  /* ---- question builder ------------------------------------------------ */
+  .q { border: 1px solid var(--border); border-radius: 8px; padding: 11px; }
+  .q + .q { margin-top: 10px; }
+  .q-top { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .q-top input[type=text] { flex: 1 1 auto; font: 600 13px/1.4 var(--mono); }
+  .pill {
+    font: 600 10px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 5px 7px; border-radius: 5px; border: 1px solid var(--border); color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .pill[data-t="choice"] { border-color: var(--series-1); color: var(--series-1); }
+  .pill[data-t="score"]  { border-color: var(--series-2); color: var(--series-2); }
+  .pill[data-t="noul"]   { border-color: var(--series-3); color: var(--series-3); }
+  .q-opts { margin-top: 8px; }
+  .q-opt { display: flex; gap: 6px; margin-top: 6px; }
+  .q-opt .k { flex: 0 0 34%; }
+  .q-opt .v { flex: 1 1 auto; }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
+
+  /* ---- results --------------------------------------------------------- */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 1px; background: var(--border); }
+  .stat { background: var(--surface-1); padding: 11px 14px; }
+  .stat .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-top: 3px; }
+  .stat .v small { font-size: 11.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+
+  .ans { border-top: 1px solid var(--border); padding: 14px 15px; }
+  .ans:first-child { border-top: none; }
+  .ans-hd { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .ans-hd .id { font: 600 13px/1.4 var(--mono); }
+  .ans-hd .conf {
+    font: 500 11px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .ans-q { color: var(--ink-2); font-size: 12.5px; margin: -4px 0 11px; }
+
+  .verdict { display: flex; align-items: baseline; gap: 9px; margin-bottom: 11px; }
+  .hero { font-size: 27px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+  .hero-sub { color: var(--muted); font-size: 12px; }
+
+  /* one slim bar for the reported probability: 4px rounded data-end, square at the baseline */
+  .bar { height: 6px; background: var(--grid); border-radius: 0 4px 4px 0; margin-top: 2px; }
+  .bar > i { display: block; height: 100%; background: var(--bar); border-radius: 0 4px 4px 0;
+             transition: width 420ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .runner {
+    margin-top: 7px; font-size: 11.5px; color: var(--muted);
+    display: flex; gap: 6px; align-items: baseline;
+  }
+  .runner b { font: 500 11.5px/1 var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  /* ---- token inspector ------------------------------------------------- */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
+  .legend .it { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .tokens { font: 12px/2.1 var(--mono); word-break: break-word; }
+  .tk { padding: 2px 1px; border-radius: 3px; border-bottom: 2px solid transparent; white-space: pre-wrap; }
+  .tk[data-s="head"]    { border-bottom-color: var(--series-1); }
+  .tk[data-s="option"]  { border-bottom-color: var(--series-2); }
+  .tk[data-s="state"]   { border-bottom-color: var(--series-3); }
+  .tk[data-s="special"] { color: var(--muted); border-bottom-color: var(--baseline); }
+  .tk.marker {
+    color: var(--ink); font-weight: 600; background: var(--grid);
+    box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3px var(--series-2);
+    border-radius: 3px; margin: 0 4px; padding: 2px 4px;
+  }
+  details > summary {
+    cursor: pointer; list-style: none; padding: 11px 14px;
+    font: 600 12px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: '▸'; color: var(--muted); font-size: 10px; }
+  details[open] > summary::before { content: '▾'; }
+  details > summary:hover { color: var(--ink); }
+  .card > details { border-top: 1px solid var(--border); }
+  .card > details:first-child { border-top: none; }
+
+  /* the question editor collapses to one line each */
+  .q > summary { padding: 8px 10px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .q > summary .qs-ins { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .q > .q-body { padding: 0 10px 10px; }
+
+  .budget { margin-top: 13px; }
+  .budget .t { height: 5px; background: var(--grid); border-radius: 0 3px 3px 0; }
+  .budget .f { height: 100%; background: var(--bar); border-radius: 0 3px 3px 0; }
+  .budget .k { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+  th { font: 600 10.5px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .err {
+    border: 1px solid var(--critical); border-radius: 8px; padding: 11px 13px;
+    font: 12.5px/1.5 var(--mono); color: var(--ink); background: var(--surface-1);
+  }
+  .err b { display: block; font-family: var(--sans); color: var(--critical); margin-bottom: 4px; }
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="/logo.png" alt="" width="30" height="30">
+    <span class="names">
+      <h1>Laya Console</h1>
+      <span class="sub">typed decisions, one forward pass</span>
+    </span>
+  </div>
+  <div class="spacer"></div>
+  <div class="chips" id="chips"></div>
+  <button class="ghost" id="theme" title="Toggle light / dark">◐</button>
+</header>
+
+<main>
+  <!-- ---------------- inputs ---------------- -->
+  <div class="stack">
+    <section class="card">
+      <div class="hd">
+        <h2>State</h2>
+        <div class="spacer"></div>
+        <select id="preset" aria-label="Load a preset">
+          <option value="">presets…</option>
+        </select>
+      </div>
+      <div class="bd">
+        <textarea id="state" spellcheck="false" aria-label="The state to decide over"></textarea>
+        <div class="hint">Plain text, or JSON — if it parses as JSON it is sent as JSON.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <h2>Questions</h2>
+        <div class="spacer"></div>
+        <button class="ghost" data-add="choice">+ choice</button>
+        <button class="ghost" data-add="score">+ score</button>
+        <button class="ghost" data-add="noul">+ noul</button>
+      </div>
+      <div class="bd">
+        <div id="qs"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+          <button class="primary" id="run">Decide</button>
+          <span class="hint" style="margin:0">⌘/Ctrl + ↵</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------------- results ---------------- -->
+  <div class="stack">
+    <div id="error" hidden></div>
+
+    <section class="card" id="stats" hidden>
+      <div class="stat-row" id="stat-row"></div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <h2>Answers</h2>
+        <div class="spacer"></div>
+        <button class="ghost" id="as-table" aria-pressed="false">table view</button>
+      </div>
+      <div id="answers"><div class="empty">Run a decision to see calibrated answers.</div></div>
+    </section>
+
+    <section class="card" id="inspector" hidden>
+      <details>
+        <summary>Prompt inspector <span id="insp-note" class="conf"></span></summary>
+        <div class="bd">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+          <select id="insp-q" aria-label="Question to inspect"></select>
+        </div>
+        <div class="legend">
+          <span class="it"><span class="swatch" style="background:var(--series-1)"></span>instructions</span>
+          <span class="it"><span class="swatch" style="background:var(--series-2)"></span>options</span>
+          <span class="it"><span class="swatch" style="background:var(--series-3)"></span>state</span>
+          <span class="it"><span class="swatch" style="background:var(--baseline)"></span>structure</span>
+          <span class="it"><span class="tk marker" style="line-height:1">[MASK]</span> scored marker</span>
+        </div>
+        <div class="tokens" id="tokens"></div>
+        <div class="budget">
+          <div class="k"><span id="budget-k"></span><span id="budget-v"></span></div>
+          <div class="t"><div class="f" id="budget-f"></div></div>
+        </div>
+        </div>
+      </details>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+const pct = v => (v * 100).toFixed(1) + '%';
+
+/* ---------------- theme ---------------- */
+const theme = $('#theme');
+try { if (localStorage.layaTheme) document.documentElement.dataset.theme = localStorage.layaTheme; } catch {}
+theme.onclick = () => {
+  const cur = document.documentElement.dataset.theme
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.layaTheme = next; } catch {}
+};
+
+/* ---------------- presets ---------------- */
+const PRESETS = {
+  'Support ticket triage': {
+    state: JSON.stringify({
+      subject: 'Charged twice for order #4417',
+      body: 'I was billed 79.00 EUR on Tuesday and again on Wednesday for the same order. Please refund the duplicate charge.',
+      customer_tier: 'pro'
+    }, null, 2),
+    questions: [
+      { id: 'department', type: 'choice', instructions: 'Which team should own this ticket?',
+        criteria: { billing: 'payments, invoices, refunds, duplicate charges', technical: 'bugs, outages, login and integration failures', sales: 'pricing, upgrades, new contracts' } },
+      { id: 'urgency', type: 'score', instructions: 'How urgent is this ticket?',
+        criteria: ['not urgent', 'low', 'normal', 'high', 'critical outage'] },
+      { id: 'needs_human', type: 'noul', instructions: 'This ticket requires a human agent rather than an automated reply.' }
+    ]
+  },
+  'Content moderation': {
+    state: 'You people never listen. I am going to find out where you live and make you regret it.',
+    questions: [
+      { id: 'policy', type: 'choice', instructions: 'Which policy category best fits this message?',
+        criteria: { none: 'no policy issue', harassment: 'targeted abuse or intimidation', threat: 'threat of violence against a person', spam: 'unsolicited promotion' } },
+      { id: 'severity', type: 'score', instructions: 'How severe is the violation?',
+        criteria: ['none', 'minor', 'moderate', 'severe', 'imminent harm'] },
+      { id: 'escalate', type: 'noul', instructions: 'This message should be escalated to the trust and safety team immediately.' }
+    ]
+  },
+  'Agent trace review': {
+    state: JSON.stringify({
+      tool_calls: [
+        { tool: 'search_db', args: { q: 'order 4417' }, ok: true },
+        { tool: 'issue_refund', args: { amount: 7900, currency: 'EUR' }, ok: false, error: 'permission_denied' },
+        { tool: 'issue_refund', args: { amount: 7900, currency: 'EUR' }, ok: false, error: 'permission_denied' },
+        { tool: 'issue_refund', args: { amount: 7900, currency: 'EUR' }, ok: false, error: 'permission_denied' }
+      ],
+      final_message: 'I have processed your refund.'
+    }, null, 2),
+    questions: [
+      { id: 'failure_mode', type: 'choice', instructions: 'What went wrong in this agent trace?',
+        criteria: { nothing: 'the trace is healthy', retry_loop: 'the same failing call repeated without adaptation', hallucinated_success: 'claimed an outcome that never happened', wrong_tool: 'picked an inappropriate tool' } },
+      { id: 'user_harm', type: 'score', instructions: 'How much harm does this cause the end user?',
+        criteria: ['none', 'mild confusion', 'wasted time', 'material loss'] },
+      { id: 'claim_supported', type: 'noul', instructions: 'The final message is supported by the tool calls that actually succeeded.' }
+    ]
+  }
+};
+
+const sel = $('#preset');
+Object.keys(PRESETS).forEach(k => sel.append(new Option(k, k)));
+sel.onchange = () => { if (sel.value) { load(PRESETS[sel.value]); sel.value = ''; } };
+
+/* ---------------- question builder ---------------- */
+const qsBox = $('#qs');
+let seq = 0;
+
+function addQuestion(q) {
+  const id = q.id || `q${++seq}`;
+  const node = el('details', 'q');
+  node.dataset.type = q.type;
+
+  // Collapsed: one line per question. The editor is there when you want it, not before.
+  const sum = el('summary');
+  const sumPill = el('span', 'pill', q.type); sumPill.dataset.t = q.type;
+  const sumId = el('span', null, id); sumId.style.font = '600 12px/1.4 var(--mono)';
+  sum.append(sumPill, sumId, el('span', 'qs-ins', q.instructions || ''));
+  node.append(sum);
+
+  const body = el('div', 'q-body');
+
+  const top = el('div', 'q-top');
+  const idIn = el('input'); idIn.type = 'text'; idIn.value = id; idIn.className = 'qid';
+  idIn.setAttribute('aria-label', 'Question id');
+  idIn.oninput = () => { sumId.textContent = idIn.value; };
+  const del = el('button', 'ghost', '✕');
+  del.title = 'Remove this question';
+  del.onclick = () => node.remove();
+  top.append(idIn, del);
+
+  const insLab = el('label', 'field');
+  insLab.append(el('span', null, q.type === 'noul' ? 'statement' : 'instructions'));
+  const ins = el('input'); ins.type = 'text'; ins.className = 'qins'; ins.value = q.instructions || '';
+  ins.oninput = () => { sum.querySelector('.qs-ins').textContent = ins.value; };
+  insLab.append(ins);
+
+  body.append(top, insLab);
+  node.append(body);
+
+  const opts = el('div', 'q-opts');
+  body.append(opts);
+
+  if (q.type === 'choice') {
+    const entries = Array.isArray(q.criteria)
+      ? q.criteria.map(k => [k, ''])
+      : Object.entries(q.criteria || {}).map(([k, v]) => [k, v || '']);
+    const addOpt = (k = '', v = '') => {
+      const row = el('div', 'q-opt');
+      const ki = el('input'); ki.type = 'text'; ki.className = 'k okey'; ki.value = k; ki.placeholder = 'label';
+      ki.setAttribute('aria-label', 'Option label');
+      const vi = el('input'); vi.type = 'text'; vi.className = 'v odesc'; vi.value = v; vi.placeholder = 'description (optional)';
+      vi.setAttribute('aria-label', 'Option description');
+      const rm = el('button', 'ghost', '−'); rm.title = 'Remove option'; rm.onclick = () => row.remove();
+      row.append(ki, vi, rm);
+      opts.append(row);
+    };
+    (entries.length ? entries : [['', ''], ['', '']]).forEach(([k, v]) => addOpt(k, v));
+    const more = el('button', 'ghost', '+ option');
+    more.onclick = () => addOpt();
+    body.append(more, el('div', 'hint', 'Label order is the order probabilities are reported in.'));
+  } else if (q.type === 'score') {
+    const lv = el('label', 'field');
+    lv.append(el('span', null, 'levels, lowest first (one per line)'));
+    const ta = el('textarea'); ta.className = 'qlevels'; ta.style.minHeight = '84px';
+    ta.value = (q.criteria || []).join('\n');
+    lv.append(ta);
+    body.append(lv, el('div', 'hint', 'The answer is the expectation over level indices, so it lands between levels.'));
+  } else {
+    body.append(el('div', 'hint', 'The answer is P(the statement holds).'));
+  }
+
+  qsBox.append(node);
+}
+
+function collect() {
+  return [...qsBox.children].map(node => {
+    const type = node.dataset.type;
+    const q = { id: $('.qid', node).value.trim() || 'q', type, instructions: $('.qins', node).value };
+    if (type === 'choice') {
+      const crit = {};
+      node.querySelectorAll('.q-opt').forEach(r => {
+        const k = $('.okey', r).value.trim();
+        if (k) crit[k] = $('.odesc', r).value.trim();
+      });
+      q.criteria = crit;
+    } else if (type === 'score') {
+      q.criteria = $('.qlevels', node).value.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+    return q;
+  });
+}
+
+function load(p) {
+  $('#state').value = p.state;
+  qsBox.textContent = '';
+  seq = 0;
+  p.questions.forEach(addQuestion);
+}
+
+document.querySelectorAll('[data-add]').forEach(b => {
+  b.onclick = () => addQuestion({ type: b.dataset.add, instructions: '', criteria: b.dataset.add === 'score' ? ['low', 'medium', 'high'] : {} });
+});
+
+/* ---------------- info chips ---------------- */
+let INFO = {};
+fetch('/api/info').then(r => r.json()).then(i => {
+  INFO = i;
+  $('#chips').innerHTML = '';
+  [['model', i.model_dir], ['device', i.device], ['max_len', i.max_len], ['head_max_len', i.head_max_len]]
+    .forEach(([k, v]) => $('#chips').append(el('span', 'chip', `${k} ${v}`)));
+}).catch(() => {});
+
+/* ---------------- run ---------------- */
+let LAST = null;
+const runBtn = $('#run');
+
+async function run() {
+  const questions = collect();
+  if (!questions.length) return;
+
+  let state = $('#state').value;
+  try { const p = JSON.parse(state); if (p && typeof p === 'object') state = p; } catch {}
+
+  runBtn.disabled = true;
+  runBtn.textContent = 'Deciding…';
+  $('#error').hidden = true;
+
+  try {
+    const res = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state, questions, inspect: true })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    LAST = { data, questions };
+    render(data, questions);
+  } catch (e) {
+    const box = $('#error');
+    box.hidden = false;
+    box.className = 'err';
+    box.innerHTML = '';
+    box.append(el('b', null, 'The model refused this request'), el('span', null, String(e.message || e)));
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = 'Decide';
+  }
+}
+runBtn.onclick = run;
+addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+});
+
+/* ---------------- render ---------------- */
+let TABLE = false;
+$('#as-table').onclick = e => {
+  TABLE = !TABLE;
+  e.target.setAttribute('aria-pressed', String(TABLE));
+  if (LAST) render(LAST.data, LAST.questions);
+};
+
+function render(data, questions) {
+  /* stat strip */
+  $('#stats').hidden = false;
+  const row = $('#stat-row');
+  row.textContent = '';
+  const budget = data.prompts
+    ? Math.max(...data.prompts.map(p => p.total_tokens / p.max_len)) : 0;
+  const stats = [
+    ['latency', data.latency_ms.toFixed(0), 'ms · 1 pass'],
+    ['questions', Object.keys(data.answers).length, ''],
+    ['input tokens', data.usage.input_tokens, ''],
+    ['budget used', (budget * 100).toFixed(0), '% of max_len']
+  ];
+  stats.forEach(([k, v, u]) => {
+    const s = el('div', 'stat');
+    s.append(el('div', 'k', k));
+    const val = el('div', 'v'); val.textContent = v;
+    if (u) val.append(el('small', null, ' ' + u));
+    s.append(val);
+    row.append(s);
+  });
+
+  /* answers */
+  const box = $('#answers');
+  box.textContent = '';
+  questions.forEach(q => {
+    const a = data.answers[q.id];
+    if (!a) return;
+    box.append(TABLE ? tableCard(q, a) : answerCard(q, a));
+  });
+
+  /* inspector */
+  if (data.prompts && data.prompts.length) {
+    $('#inspector').hidden = false;
+    const s = $('#insp-q');
+    const keep = s.value;
+    s.textContent = '';
+    questions.forEach((q, i) => s.append(new Option(q.id, String(i))));
+    s.value = questions.some((q, i) => String(i) === keep) ? keep : '0';
+    s.onchange = () => drawPrompt(data.prompts[+s.value]);
+    drawPrompt(data.prompts[+s.value]);
+  }
+}
+
+/** The reported probability as one slim bar. The full distribution lives in the table view. */
+function slimBar(p) {
+  const t = el('div', 'bar');
+  const f = el('i');
+  f.style.width = '0%';
+  t.append(f);
+  requestAnimationFrame(() => { f.style.width = Math.max(p * 100, 0.8) + '%'; });
+  return t;
+}
+
+/** One line for the runner-up: enough to see a close call without reading five bars. */
+function runnerUp(labels, probs, winner) {
+  const order = labels.map((l, i) => [l, probs[i]]).sort((a, b) => b[1] - a[1]);
+  const next = order.find(([l]) => l !== winner);
+  if (!next) return null;
+  const r = el('div', 'runner');
+  r.append(el('span', null, 'next:'), el('span', null, next[0]), el('b', null, pct(next[1])));
+  return r;
+}
+
+function answerCard(q, a) {
+  const c = el('div', 'ans');
+  const hd = el('div', 'ans-hd');
+  const pill = el('span', 'pill', a.type); pill.dataset.t = a.type;
+  hd.append(el('span', 'id', q.id), pill, el('div', 'spacer'));
+  if (a.confidence != null) hd.append(el('span', 'conf', 'confidence ' + a.confidence.toFixed(2)));
+  c.append(hd, el('div', 'ans-q', q.instructions));
+
+  const v = el('div', 'verdict');
+  if (a.type === 'choice') {
+    const labels = Object.keys(a.probabilities);
+    const probs = labels.map(l => a.probabilities[l]);
+    const p = a.probabilities[a.choice];
+    v.append(el('span', 'hero', a.choice), el('span', 'hero-sub', pct(p)));
+    c.append(v, slimBar(p));
+    const r = runnerUp(labels, probs, a.choice);
+    if (r) c.append(r);
+  } else if (a.type === 'score') {
+    const keys = Object.keys(a.probabilities);
+    const probs = keys.map(k => a.probabilities[k]);
+    const top = probs.indexOf(Math.max(...probs));
+    v.append(el('span', 'hero', a.score.toFixed(2)),
+             el('span', 'hero-sub', `expected level, of ${keys.length - 1}`));
+    c.append(v, slimBar(a.score / Math.max(1, keys.length - 1)));
+    // The expectation and the mode can disagree; the mode is the one worth naming.
+    const r = el('div', 'runner');
+    r.append(el('span', null, 'most likely:'),
+             el('span', null, a.legend[keys[top]] || ('level ' + keys[top])),
+             el('b', null, pct(probs[top])));
+    c.append(r);
+  } else {
+    v.append(el('span', 'hero', pct(a.noul)), el('span', 'hero-sub', 'probability it holds'));
+    c.append(v, slimBar(a.noul));
+  }
+  return c;
+}
+
+function tableCard(q, a) {
+  const c = el('div', 'ans');
+  const hd = el('div', 'ans-hd');
+  const pill = el('span', 'pill', a.type); pill.dataset.t = a.type;
+  hd.append(el('span', 'id', q.id), pill);
+  c.append(hd, el('div', 'ans-q', q.instructions));
+
+  const t = el('table');
+  const thead = el('thead');
+  thead.innerHTML = '<tr><th>option</th><th style="text-align:right">probability</th></tr>';
+  const tb = el('tbody');
+  const rows = a.type === 'noul'
+    ? [['holds', a.noul], ['does not hold', 1 - a.noul]]
+    : Object.entries(a.probabilities).map(([k, v]) => [a.legend ? `${k} · ${a.legend[k]}` : k, v]);
+  rows.forEach(([k, v]) => {
+    const tr = el('tr');
+    tr.append(el('td', null, k), el('td', 'num', pct(v)));
+    tb.append(tr);
+  });
+  const tf = el('tfoot');
+  const extra = [];
+  if (a.type === 'choice') extra.push(['argmax', a.choice]);
+  if (a.type === 'score') extra.push(['score', a.score.toFixed(4)]);
+  if (a.confidence != null) extra.push(['confidence', a.confidence.toFixed(4)]);
+  extra.push(['P(answer)', a.rl_agent.act_probability.toFixed(4)]);
+  extra.forEach(([k, v]) => {
+    const tr = el('tr');
+    tr.append(el('td', null, k), el('td', 'num', String(v)));
+    tf.append(tr);
+  });
+  t.append(thead, tb, tf);
+  c.append(t);
+  return c;
+}
+
+function drawPrompt(p) {
+  const box = $('#tokens');
+  box.textContent = '';
+  p.tokens.forEach(t => {
+    const s = el('span', 'tk' + (t.marker ? ' marker' : ''));
+    s.dataset.s = t.segment;
+    s.textContent = t.marker ? `[${t.option}]` : t.text;
+    s.title = t.marker
+      ? `marker for option ${t.option}: ${p.options[t.option] ?? ''}`
+      : `${t.segment} · id ${t.id}`;
+    box.append(s);
+  });
+  $('#budget-k').textContent = p.state_truncated ? 'sequence budget — state was truncated' : 'sequence budget';
+  const note = $('#insp-note');
+  note.textContent = `${p.total_tokens} / ${p.max_len} tokens` + (p.state_truncated ? ' · state truncated' : '');
+  note.style.color = p.state_truncated ? 'var(--critical)' : 'var(--muted)';
+  $('#budget-v').textContent = `${p.total_tokens} / ${p.max_len} tokens`;
+  $('#budget-f').style.width = (p.total_tokens / p.max_len * 100) + '%';
+  $('#budget-f').style.background = p.state_truncated ? 'var(--critical)' : 'var(--bar)';
+}
+
+/* ---------------- boot ---------------- */
+load(PRESETS['Support ticket triage']);
+</script>
+</body>
+</html>
