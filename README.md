@@ -151,17 +151,18 @@ to pick the right bucket from a policy it cannot see is asking it to guess. Ask 
 instead. A `noul` question, which returns the probability that a statement holds, is usually the
 strongest shape available.
 
-`examples/sandbox_triage.rs` is a worked example of all three, scoring shell commands a coding
-agent wants to run:
+`examples/exfil_triage.rs` works all three through on a real problem: spotting a command that
+sends a credential off the machine, which is the one thing a write-containing sandbox cannot
+see, since reads and network calls are both allowed.
 
 ```sh
-cargo run --release --example sandbox_triage -- models/laya-base
+cargo run --release --example exfil_triage -- models/laya-typed
 ```
 
-It catches three of four dangerous commands at a fixed 0.5 threshold with no false alarms on
-the eight ordinary ones, and prints the ranking so you can see where the boundary sits. The one
-it misses, `cat ~/.ssh/id_rsa`, is a good illustration of the limit: nothing in that sentence
-says the file is a credential.
+On a thirty-command held-out set it catches 10 of 11 at a fixed 0.5 threshold with one false
+alarm, precision and recall both 0.91. Obfuscated variants score *higher* than plain ones,
+so wrapping the payload in `base64` or `$(cat ...)` does not get past it. Read-only commands
+like `cat ~/.ssh/id_rsa` sit below the line, which is correct: the risk is a read plus a send.
 
 One field not to reach for: `rl_agent.act_probability` reads `1.0000` for every input on the
 published checkpoints, so use the entropy-derived `confidence` instead.
