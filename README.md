@@ -1,8 +1,10 @@
 # laya
 
 Rust inference for [Laya](https://huggingface.co/convaiinnovations/laya), a non-autoregressive
-typed-decision model. You give it a **state** (text or JSON) and a set of **typed questions**;
-it returns typed answers with calibrated probabilities in a single forward pass. It never
+typed-decision model of the kind TypeSafe calls a
+[System One model](https://typesafe.ai/blog/introducing-system-one-models-and-jev). You give
+it a **state** (text or JSON) and a set of **typed questions**; it returns typed answers with
+calibrated probabilities in a single forward pass. It never
 generates text, so there is nothing to parse and nothing to hallucinate.
 
 Pure Rust on [candle](https://github.com/huggingface/candle) — no Python, no torch, no ONNX
@@ -21,9 +23,13 @@ for f in model.safetensors encoder/config.json tokenizer/tokenizer.json \
 done
 ```
 
-That is ~847 MB. The repo also carries two sibling variants under `multilingual/` and
-`typed-decisions/`; this crate loads any of them, since the layout is identical — point
-`--model` at the directory you downloaded.
+That is ~847 MB. The repo also carries two sibling variants under
+[`multilingual/`](https://huggingface.co/convaiinnovations/laya-multilingual) and
+[`typed-decisions/`](https://huggingface.co/convaiinnovations/laya-typed-decisions); this crate
+loads any of them, since the layout is identical, so point `--model` at the directory you
+downloaded. `typed-decisions/` is the fine-tuned one, marked
+`"fine_tuned": true` with temperatures near 1.0 rather than near 2.0, and it is the sensible
+default for typed decisions.
 
 ## CLI
 
@@ -123,6 +129,42 @@ probabilities are reported against.
 
 Every answer also carries `rl_agent.act_probability`: the act head's probability of answering
 rather than escalating to a stronger model.
+
+## Writing questions that work
+
+The model is a text encoder scoring `[MASK]` markers by the meaning of the text around them.
+Two habits follow from that, and between them they are worth more than the choice of
+checkpoint.
+
+**Give it prose, not a struct.** Passing the structured record you already have,
+`{"command": "sudo rm -rf /", "cwd": "..."}`, hands the encoder a document with almost no
+meaning in it. Name the situation the way a person would: *"I am working in the project folder
+/Users/enzo/Code/plank. A coding assistant wants to run this command: sudo rm -rf /"*.
+
+**Make options phrases, not tokens.** `["up", "stay", "down"]` and `["allow", "confirm",
+"deny"]` are enum values, and `stay` barely means anything on its own. `["move the paddle up",
+"keep the paddle still", "move the paddle down"]` means something, and on the pong demo that
+single change takes the answer from 3/5 correct to 5/5.
+
+**Ask about the world, not about your policy.** The model has not read your rules, so asking it
+to pick the right bucket from a policy it cannot see is asking it to guess. Ask what is true
+instead. A `noul` question, which returns the probability that a statement holds, is usually the
+strongest shape available.
+
+`examples/sandbox_triage.rs` is a worked example of all three, scoring shell commands a coding
+agent wants to run:
+
+```sh
+cargo run --release --example sandbox_triage -- models/laya-base
+```
+
+It catches three of four dangerous commands at a fixed 0.5 threshold with no false alarms on
+the eight ordinary ones, and prints the ranking so you can see where the boundary sits. The one
+it misses, `cat ~/.ssh/id_rsa`, is a good illustration of the limit: nothing in that sentence
+says the file is a credential.
+
+One field not to reach for: `rl_agent.act_probability` reads `1.0000` for every input on the
+published checkpoints, so use the entropy-derived `confidence` instead.
 
 ## How it works
 
