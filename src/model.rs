@@ -1,11 +1,11 @@
 //! The decision model: a frozen-architecture ModernBERT backbone plus the from-scratch
 //! decision head (`DecisionModel` in `rl_common.py`).
 
+use crate::modernbert::ModernBert;
 use anyhow::Result;
 use candle_core::{DType, Device, IndexOp, Tensor, D};
 use candle_nn::ops::softmax;
 use candle_nn::{embedding, layer_norm, linear, Embedding, LayerNorm, Linear, Module, VarBuilder};
-use candle_transformers::models::modernbert::ModernBert;
 
 use crate::config::EncoderConfig;
 

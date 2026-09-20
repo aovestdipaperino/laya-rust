@@ -15,6 +15,7 @@
 //! nothing to work with.
 
 use anyhow::Result;
+use candle_core::DType;
 use laya::{Agent, Options, Question};
 use serde_json::json;
 use std::time::Instant;
@@ -126,7 +127,19 @@ fn main() -> Result<()> {
     let dir = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "models/laya-typed".into());
-    let agent = Agent::from_dir(&dir, Options::default())?;
+    // optional second arg: f16 or f32, for checking the two agree
+    let dtype = match std::env::args().nth(2).as_deref() {
+        Some("f32") => Some(DType::F32),
+        Some("f16") => Some(DType::F16),
+        _ => None,
+    };
+    let agent = Agent::from_dir(
+        &dir,
+        Options {
+            dtype,
+            ..Default::default()
+        },
+    )?;
 
     let questions = vec![(
         "exfil".to_string(),

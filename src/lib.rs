@@ -21,6 +21,7 @@
 
 pub mod config;
 pub mod model;
+pub mod modernbert;
 pub mod question;
 
 use anyhow::{Context, Result};
@@ -150,15 +151,18 @@ impl Agent {
             Some(d) => d,
             None => default_device(),
         };
-        // candle's ModernBert builds its attention mask as f32 unconditionally, so a f16 backbone
-        // fails with a dtype mismatch inside the first attention block. Weights are f16 on disk and
-        // are upcast on load; peak memory is therefore about 2.4 GB.
+        // Weights are f16 on disk. The vendored encoder builds its attention masks in the
+        // model's dtype (upstream candle hardcodes f32), so an f16 backbone now loads and
+        // runs on an accelerator, halving weight memory from 1.69 GB to 0.84 GB.
+        //
+        // f32 stays the default. f16 costs bit-exact agreement between a batched answer and
+        // the same question asked alone: they drift by around 1e-3, which is immaterial to a
+        // thresholded decision and visible if you compare payloads. Ask for it explicitly
+        // when the memory matters more, which is the usual case when this model is resident
+        // alongside a larger one.
         let dtype = opts.dtype.unwrap_or(DType::F32);
-        if dtype != DType::F32 {
-            anyhow::bail!(
-                "only f32 is supported: candle's ModernBert forces an f32 attention mask, \
-                 so a {dtype:?} backbone fails inside the first attention block"
-            );
+        if dtype == DType::F16 && matches!(device, Device::Cpu) {
+            anyhow::bail!("f16 needs an accelerator: candle's CPU kernels have no f16 path");
         }
 
         let cfg = AgentConfig::load(dir.join("rl_agent_config.json"))?;

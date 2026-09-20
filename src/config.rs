@@ -1,7 +1,7 @@
 //! Runtime config: the encoder architecture plus the agent's own decoding settings.
 
+use crate::modernbert;
 use anyhow::{Context, Result};
-use candle_transformers::models::modernbert;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;

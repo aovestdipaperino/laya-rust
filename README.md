@@ -204,9 +204,13 @@ cargo build --release --features metal     # Apple GPU
 cargo build --release --features cuda      # NVIDIA
 ```
 
-f32 only. Weights are f16 on disk and are upcast when loaded, so peak memory is around 2.4 GB;
-candle's ModernBERT builds its attention mask as f32 unconditionally, so an f16 backbone fails
-inside the first attention block.
+f32 by default, f16 on an accelerator with `--dtype f16`. The weights are f16 on disk, so f32
+doubles them to 1.69 GB resident where f16 keeps them at 0.84 GB. Upstream candle's ModernBERT
+builds both its attention masks as f32 unconditionally, which makes an f16 backbone fail inside
+the first attention block; `src/modernbert.rs` is that file vendored with the masks following
+the model's dtype instead. Answers agree with f32 to about 1e-3, so the one thing f16 costs is
+bit-exact agreement between a batched answer and the same question asked on its own. CPU is f32
+only: candle has no f16 CPU kernels.
 
 ## Calibration
 
