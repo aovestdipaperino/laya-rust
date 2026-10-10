@@ -171,7 +171,7 @@ impl Agent {
         let tok_path = dir.join("tokenizer/tokenizer.json");
         let tokenizer = Tokenizer::from_file(&tok_path)
             .map_err(|e| anyhow::anyhow!("loading tokenizer {}: {e}", tok_path.display()))?;
-        let specials = resolve_specials(&tokenizer)?;
+        let specials = resolve_specials(&tokenizer, &SpecialNames::from_dir(dir))?;
 
         let weights = dir.join("model.safetensors");
         let tensors = candle_core::safetensors::load(&weights, &device)
@@ -413,17 +413,84 @@ fn default_device() -> Device {
     Device::Cpu
 }
 
-fn resolve_specials(tok: &Tokenizer) -> Result<SpecialIds> {
+/// The tokenizer's four special-token names, read from `tokenizer/tokenizer_config.json`.
+///
+/// The English checkpoints name these `[CLS]`/`[SEP]`/`[MASK]`/`[PAD]`; the multilingual
+/// checkpoints use an mmBERT tokenizer whose names are `<bos>`/`<eos>`/`<mask>`/`<pad>`. Reading
+/// them from the config loads either, while the English defaults keep checkpoints without a
+/// readable config (or with missing fields) working exactly as before.
+#[derive(Debug, Clone)]
+struct SpecialNames {
+    cls: String,
+    sep: String,
+    mask: String,
+    pad: String,
+}
+
+impl Default for SpecialNames {
+    fn default() -> Self {
+        Self {
+            cls: "[CLS]".to_string(),
+            sep: "[SEP]".to_string(),
+            mask: "[MASK]".to_string(),
+            pad: "[PAD]".to_string(),
+        }
+    }
+}
+
+impl SpecialNames {
+    fn from_dir(dir: &Path) -> Self {
+        match std::fs::read_to_string(dir.join("tokenizer/tokenizer_config.json")) {
+            Ok(raw) => Self::from_config(&raw),
+            Err(_) => Self::default(),
+        }
+    }
+
+    /// A field is a bare string in most checkpoints and an object with a `content` key in newer
+    /// ones. Missing, empty or unparseable fields keep the default.
+    fn from_config(raw: &str) -> Self {
+        let Ok(v) = serde_json::from_str::<Value>(raw) else {
+            return Self::default();
+        };
+        let pick = |key: &str| -> Option<String> {
+            match v.get(key)? {
+                Value::String(s) if !s.is_empty() => Some(s.clone()),
+                Value::Object(o) => o
+                    .get("content")
+                    .and_then(|c| c.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string),
+                _ => None,
+            }
+        };
+        let mut names = Self::default();
+        if let Some(s) = pick("cls_token") {
+            names.cls = s;
+        }
+        if let Some(s) = pick("sep_token") {
+            names.sep = s;
+        }
+        if let Some(s) = pick("mask_token") {
+            names.mask = s;
+        }
+        if let Some(s) = pick("pad_token") {
+            names.pad = s;
+        }
+        names
+    }
+}
+
+fn resolve_specials(tok: &Tokenizer, names: &SpecialNames) -> Result<SpecialIds> {
     let id = |t: &str| -> Result<u32> {
         tok.token_to_id(t)
             .ok_or_else(|| anyhow::anyhow!("tokenizer has no {t} token"))
     };
     Ok(SpecialIds {
-        cls: id("[CLS]")?,
-        sep: id("[SEP]")?,
-        mask: id("[MASK]")?,
-        pad: id("[PAD]")?,
-        mask_text: "[MASK]".to_string(),
+        cls: id(&names.cls)?,
+        sep: id(&names.sep)?,
+        mask: id(&names.mask)?,
+        pad: id(&names.pad)?,
+        mask_text: names.mask.clone(),
     })
 }
 
@@ -456,4 +523,66 @@ fn confidence_from_probs(p: &[f32], k: usize) -> f32 {
         .map(|v| v * v.clamp(1e-12, 1.0).ln())
         .sum::<f32>();
     1.0 - ent / (k as f32).ln()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SpecialNames;
+
+    fn names(raw: &str) -> (String, String, String, String) {
+        let n = SpecialNames::from_config(raw);
+        (n.cls, n.sep, n.mask, n.pad)
+    }
+
+    #[test]
+    fn special_names_default_to_the_english_tokens() {
+        assert_eq!(
+            names("{}"),
+            (
+                "[CLS]".to_string(),
+                "[SEP]".to_string(),
+                "[MASK]".to_string(),
+                "[PAD]".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn special_names_read_the_multilingual_tokens() {
+        let raw =
+            r#"{"cls_token":"<bos>","sep_token":"<eos>","mask_token":"<mask>","pad_token":"<pad>"}"#;
+        assert_eq!(
+            names(raw),
+            (
+                "<bos>".to_string(),
+                "<eos>".to_string(),
+                "<mask>".to_string(),
+                "<pad>".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn special_names_accept_the_object_form() {
+        let raw = r#"{"cls_token":{"content":"<bos>"},"mask_token":{"content":"<mask>"}}"#;
+        let (cls, sep, mask, pad) = names(raw);
+        assert_eq!(cls, "<bos>");
+        assert_eq!(mask, "<mask>");
+        // Unspecified fields keep the English default.
+        assert_eq!(sep, "[SEP]");
+        assert_eq!(pad, "[PAD]");
+    }
+
+    #[test]
+    fn invalid_config_keeps_the_defaults() {
+        assert_eq!(
+            names("not json"),
+            (
+                "[CLS]".to_string(),
+                "[SEP]".to_string(),
+                "[MASK]".to_string(),
+                "[PAD]".to_string()
+            )
+        );
+    }
 }
