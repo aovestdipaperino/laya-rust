@@ -1,5 +1,7 @@
 # laya
 
+[![GitHub stars](https://img.shields.io/github/stars/aovestdipaperino/laya-rust?logo=github&color=brightgreen)](https://github.com/aovestdipaperino/laya-rust/stargazers)
+
 Rust inference for [Laya](https://huggingface.co/convaiinnovations/laya), a non-autoregressive
 typed-decision model of the kind TypeSafe calls a
 [System One model](https://typesafe.ai/blog/introducing-system-one-models-and-jev). You give
