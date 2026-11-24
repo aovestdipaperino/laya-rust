@@ -133,6 +133,8 @@ pub struct PromptView {
     pub max_len: usize,
     /// True when the state was cut to fit `max_len`.
     pub state_truncated: bool,
+    /// How many option labels were cut to fit `head_max_len`.
+    pub labels_clipped: usize,
 }
 
 pub struct Agent {
@@ -227,6 +229,7 @@ impl Agent {
                 q,
                 self.cfg.max_len,
                 self.cfg.head_max_len,
+                self.cfg.truncate_left,
             )
             .with_context(|| format!("question {qid:?}"))?;
             encoded.push(e);
@@ -329,7 +332,8 @@ impl Agent {
     }
 
     /// The exact token sequence for one question, annotated by segment. Useful for showing
-    /// where the option markers land and whether the state was truncated.
+    /// where the option markers land, whether the state was truncated, and whether any option
+    /// labels were clipped to fit `head_max_len`.
     pub fn render_prompt(&self, state: &Value, q: &Question) -> Result<PromptView> {
         let e = question::build_sequence(
             &self.tokenizer,
@@ -338,6 +342,7 @@ impl Agent {
             q,
             self.cfg.max_len,
             self.cfg.head_max_len,
+            self.cfg.truncate_left,
         )?;
         let options = q.render_options()?;
 
@@ -386,6 +391,7 @@ impl Agent {
             markers: e.markers,
             max_len: self.cfg.max_len,
             state_truncated,
+            labels_clipped: e.labels_clipped,
         })
     }
 

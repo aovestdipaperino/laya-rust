@@ -88,6 +88,10 @@ pub struct AgentConfig {
     pub temperature_by_options: HashMap<String, f32>,
     #[serde(default)]
     pub model_name: String,
+    /// Keep the end of the state instead of the start when it overflows `max_len`. Off by
+    /// default, which matches the Python reference through its public `Agent.predict` API.
+    #[serde(default)]
+    pub truncate_left: bool,
 }
 
 fn default_temperature() -> Vec<f32> {

@@ -720,13 +720,16 @@ function drawPrompt(p) {
       : `${t.segment} · id ${t.id}`;
     box.append(s);
   });
-  $('#budget-k').textContent = p.state_truncated ? 'sequence budget — state was truncated' : 'sequence budget';
+  const warnings = [];
+  if (p.state_truncated) warnings.push('state truncated');
+  if (p.labels_clipped) warnings.push(p.labels_clipped + ' label' + (p.labels_clipped === 1 ? '' : 's') + ' clipped');
+  $('#budget-k').textContent = warnings.length ? 'sequence budget — ' + warnings.join(', ') : 'sequence budget';
   const note = $('#insp-note');
-  note.textContent = `${p.total_tokens} / ${p.max_len} tokens` + (p.state_truncated ? ' · state truncated' : '');
-  note.style.color = p.state_truncated ? 'var(--critical)' : 'var(--muted)';
+  note.textContent = `${p.total_tokens} / ${p.max_len} tokens` + (warnings.length ? ' · ' + warnings.join(' · ') : '');
+  note.style.color = warnings.length ? 'var(--critical)' : 'var(--muted)';
   $('#budget-v').textContent = `${p.total_tokens} / ${p.max_len} tokens`;
   $('#budget-f').style.width = (p.total_tokens / p.max_len * 100) + '%';
-  $('#budget-f').style.background = p.state_truncated ? 'var(--critical)' : 'var(--bar)';
+  $('#budget-f').style.background = warnings.length ? 'var(--critical)' : 'var(--bar)';
 }
 
 /* ---------------- boot ---------------- */

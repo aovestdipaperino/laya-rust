@@ -97,6 +97,27 @@ fn qtype_indices_match_the_checkpoint_embedding_rows() {
 }
 
 #[test]
+fn agent_config_truncate_left_defaults_to_false() {
+    let cfg: AgentConfig = serde_json::from_value(json!({
+        "max_len": 512,
+        "head_max_len": 192,
+    }))
+    .unwrap();
+    assert!(!cfg.truncate_left);
+}
+
+#[test]
+fn agent_config_truncate_left_can_be_turned_on() {
+    let cfg: AgentConfig = serde_json::from_value(json!({
+        "max_len": 512,
+        "head_max_len": 192,
+        "truncate_left": true,
+    }))
+    .unwrap();
+    assert!(cfg.truncate_left);
+}
+
+#[test]
 fn an_option_less_question_is_rejected_with_a_readable_message() {
     // Without the guard this reaches the model and fails as an opaque tensor reshape.
     let q: Question =
